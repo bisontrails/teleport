@@ -37,6 +37,7 @@ import (
 	"github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/teleport/tool/tsh/common"
 
+	"github.com/stretchr/testify/require"
 	"gopkg.in/check.v1"
 )
 
@@ -348,5 +349,50 @@ func (s *MainTestSuite) TestOptions(c *check.C) {
 		c.Assert(options.ForwardAgent, check.Equals, tt.outOptions.ForwardAgent)
 		c.Assert(options.RequestTTY, check.Equals, tt.outOptions.RequestTTY)
 		c.Assert(options.StrictHostKeyChecking, check.Equals, tt.outOptions.StrictHostKeyChecking)
+	}
+}
+
+// TestReadClusterFlag tests that cluster environment flag is reads in correctly.
+func TestReadClusterFlag(t *testing.T) {
+	var tests = []struct {
+		desc          string
+		inSiteName    string
+		inClusterName string
+		outSiteName   string
+	}{
+		{
+			desc:          "nothing set",
+			inSiteName:    "",
+			inClusterName: "",
+			outSiteName:   "",
+		},
+		{
+			desc:          "TELEPORT_SITE set",
+			inSiteName:    "a.example.com",
+			inClusterName: "",
+			outSiteName:   "a.example.com",
+		},
+		{
+			desc:          "TELEPORT_CLUSTER set",
+			inSiteName:    "",
+			inClusterName: "b.example.com",
+			outSiteName:   "b.example.com",
+		},
+		{
+			desc:          "TELEPORT_SITE and TELEPORT_CLUSTER set, prefer TELEPORT_CLUSTER",
+			inSiteName:    "c.example.com",
+			inClusterName: "d.example.com",
+			outSiteName:   "d.example.com",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			os.Setenv(siteEnvVar, tt.inSiteName)
+			os.Setenv(clusterEnvVar, tt.inClusterName)
+
+			var cf CLIConf
+			readClusterFlag(&cf)
+			require.Equal(t, tt.outSiteName, cf.SiteName)
+		})
 	}
 }
